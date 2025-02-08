@@ -46,11 +46,7 @@ void loop() {
   screen.setCursor(4, 12);
   screen.print("voltage_value: ");
   screen.println(voltage_value);
-
-  int read_value = random(0, 100);
-  screen.setCursor(4, 18);
-  screen.print("random: ");
-  screen.println(read_value, 1);
+  
   // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
   delay(2500);
 }
