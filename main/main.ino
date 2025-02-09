@@ -1,6 +1,7 @@
 #include "DFRobot_GDL.h"
 #include <Arduino.h>
 #include <stdint.h>
+#include <HX711.h> // https://github.com/bogde/HX711
 
 #define DEFAULT_VREF    1100
 
@@ -15,13 +16,21 @@
 #define TFT_TCS 3
 #define TFT_SCL 22 // I2C clock
 #define TFT_SDA 21 // I2C data
-
 #define adcPin A0
+#define LOADCELL_DOUT_PIN 10
+#define LOADCELL_SCK_PIN 3
+
+// 2. Adjustment settings
+const long LOADCELL_OFFSET = 50682624;
+const long LOADCELL_DIVIDER = 5895655;
 
 DFRobot_ST7735_128x160_HW_SPI screen(/*dc=*/TFT_DC,/*cs=*/TFT_CS,/*rst=*/TFT_RST);
+HX711 loadcell;
 
 int ADC_VALUE = 0;
 double voltage_value = 0.0; 
+bool measureCalibrated = false;
+float currentWeight = 0.0;
 
 void setup() {
   // Serial1.begin(9600, SERIAL_8N1,/*rx =*/0,/*Tx =*/1);  should work but won't
@@ -29,11 +38,16 @@ void setup() {
   screen.begin();
   pinMode(adcPin, INPUT); // set the analog reference to 3.3V
   splash();
-  screen.fillScreen(COLOR_RGB565_WHITE);
+  screen.fillScreen(COLOR_RGB565_BLUE);
+  screen.setCursor(4, 4);
+  screen.println("Initializing LoadCell...");
+  loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  screen.fillScreen(COLOR_RGB565_GREEN);
+  screen.println("LoadCell ready");
 }
 
 void loop() {
-  screen.fillScreen(COLOR_RGB565_WHITE);
+  screen.fillScreen(COLOR_RGB565_RED);
   screen.setTextColor(COLOR_RGB565_BLACK);
   screen.setTextSize(1);
 
@@ -42,11 +56,15 @@ void loop() {
   screen.print("ADC_VALUE: ");
   screen.println(ADC_VALUE);
 
-  sensor_reading();
   screen.setCursor(4, 12);
   screen.print("voltage_value: ");
   screen.println(voltage_value);
   
+  screen.setCursor(4, 20);
+  float reading = loadcell.get_scale();
+  screen.print("Weight: ");
+  screen.println(reading, 2);
+
   // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
   delay(2500);
 }
@@ -84,4 +102,3 @@ float sensor_reading() {
   voltage_value = (ADC_VALUE * 3.3 ) / (4095);
   return voltage_value;
 }
-
