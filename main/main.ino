@@ -20,17 +20,14 @@
 #define LOADCELL_DOUT_PIN 10
 #define LOADCELL_SCK_PIN 3
 
-// 2. Adjustment settings
-const long LOADCELL_OFFSET = 50682624;
-const long LOADCELL_DIVIDER = 5895655;
-
 DFRobot_ST7735_128x160_HW_SPI screen(/*dc=*/TFT_DC,/*cs=*/TFT_CS,/*rst=*/TFT_RST);
+// https://www.circuitschools.com/weighing-scale-using-load-cell-and-hx711-amplifier-with-arduino/
 HX711 loadcell;
 
 int ADC_VALUE = 0;
 double voltage_value = 0.0; 
-bool measureCalibrated = false;
-float currentWeight = 0.0;
+float calibration_factor = 137326;
+double lastReading = 0.0;
 
 void setup() {
   // Serial1.begin(9600, SERIAL_8N1,/*rx =*/0,/*Tx =*/1);  should work but won't
@@ -38,16 +35,29 @@ void setup() {
   screen.begin();
   pinMode(adcPin, INPUT); // set the analog reference to 3.3V
   splash();
-  screen.fillScreen(COLOR_RGB565_BLUE);
+  // LOAD CELL
   screen.setCursor(4, 4);
   screen.println("Initializing LoadCell...");
   loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  loadcell.set_scale();
+  loadcell.tare();	//Reset the scale to 0
+  long zero_factor = loadcell.read_average(); //Get a baseline reading
+  screen.setCursor(4, 12);
+  screen.print("Zero factor: "); //This can be used to remove the need to tare the scale. Useful in permanent scale projects.
+  screen.println(zero_factor);
   screen.fillScreen(COLOR_RGB565_GREEN);
+  screen.setCursor(4, 20);
   screen.println("LoadCell ready");
+
+  screen.fillScreen(COLOR_RGB565_WHITE);
 }
 
 void loop() {
-  screen.fillScreen(COLOR_RGB565_RED);
+  loadcell.set_scale(calibration_factor); //Adjust to this calibration factor
+  screen.drawRect(/*x=*/2, /*y=*/2 , /*w=*/screen.width() - 4, /*h=*/32, /*color=*/COLOR_RGB565_DGREEN);
+  screen.fillRect(/*x=*/4, /*y=*/4 , /*w=*/screen.width() - 8, /*h=*/30, /*color=*/COLOR_RGB565_WHITE);
+  delay(100);
+
   screen.setTextColor(COLOR_RGB565_BLACK);
   screen.setTextSize(1);
 
@@ -55,18 +65,25 @@ void loop() {
   screen.setCursor(4, 4);
   screen.print("ADC_VALUE: ");
   screen.println(ADC_VALUE);
-
   screen.setCursor(4, 12);
   screen.print("voltage_value: ");
   screen.println(voltage_value);
   
   screen.setCursor(4, 20);
-  float reading = loadcell.get_scale();
+  float reading = loadcell.get_units();
   screen.print("Weight: ");
-  screen.println(reading, 2);
+  screen.print(reading, 4);
+  screen.println(" Kgs");
 
+  if ((reading - lastReading) > 0.005) {
+    lastReading = reading;
+     delay(500);
+  }
+  else {
+    delay(2000);
+  }
   // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
-  delay(2500);
+ 
 }
 
 void splash() {
