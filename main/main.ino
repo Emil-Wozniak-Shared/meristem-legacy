@@ -49,7 +49,7 @@ void setup() {
   screen.setCursor(4, 20);
   screen.println("LoadCell ready");
 
-  screen.fillScreen(COLOR_RGB565_WHITE);
+  screen.fillScreen(COLOR_RGB565_BLACK);
 }
 
 void loop() {
@@ -58,10 +58,10 @@ void loop() {
   screen.print("Readings");
   loadcell.set_scale(calibration_factor); //Adjust to this calibration factor
   screen.drawRect(/*x=*/2, /*y=*/2 , /*w=*/screen.width() - 8, /*h=*/46 + 8 + 8, /*color=*/COLOR_RGB565_DGREEN);
-  screen.fillRect(/*x=*/24, /*y=*/24 , /*w=*/screen.width() - 4, /*h=*/46 + 8 , /*color=*/COLOR_RGB565_WHITE);
+  screen.fillRect(/*x=*/4, /*y=*/24 , /*w=*/screen.width() - (8 + 4), /*h=*/46 -6, /*color=*/COLOR_RGB565_BLACK);
   delay(100);
 
-  screen.setTextColor(COLOR_RGB565_BLACK);
+  screen.setTextColor(COLOR_RGB565_WHITE);
   screen.setTextSize(1);
 
   sensor_reading();
