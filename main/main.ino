@@ -28,6 +28,8 @@ int ADC_VALUE = 0;
 double voltage_value = 0.0; 
 float calibration_factor = 137326;
 double lastReading = 0.0;
+float slope = 2.48;// 92.07; // slope from linear fit
+float intercept = 0.72;//-29.92; // intercept from linear fit
 
 void setup() {
   // Serial1.begin(9600, SERIAL_8N1,/*rx =*/0,/*Tx =*/1);  should work but won't
@@ -77,7 +79,13 @@ void loop() {
   screen.print("Weight: ");
   screen.print(reading, 4);
   screen.println(" Kgs");
-
+  screen.setCursor(4, 54);
+  screen.print("Water: ");
+  float vol_water_cont = ((1.0 / voltage_value) * slope) + intercept; // calc of theta_v (vol. water content)
+  screen.print(vol_water_cont);
+  screen.println(" cm^3/cm^3"); // cm^3/cm^3
+  // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
+ 
   if ((reading - lastReading) > 0.005) {
     lastReading = reading;
     delay(500);
@@ -85,8 +93,8 @@ void loop() {
   else {
     delay(2000);
   }
-  // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
- 
+
+
 }
 
 void splash() {
