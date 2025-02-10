@@ -1,7 +1,7 @@
 #include "DFRobot_GDL.h"
 #include <Arduino.h>
 #include <stdint.h>
-#include <HX711.h> // https://github.com/bogde/HX711
+#include <HX711.h> 
 
 #define DEFAULT_VREF    1100
 
@@ -16,7 +16,8 @@
 #define TFT_TCS 3
 #define TFT_SCL 22 // I2C clock
 #define TFT_SDA 21 // I2C data
-#define adcPin A0
+#define ADC_PIN A0
+#define BTN_PIN 21
 #define LOADCELL_DOUT_PIN 10
 #define LOADCELL_SCK_PIN 3
 
@@ -24,18 +25,21 @@ DFRobot_ST7735_128x160_HW_SPI screen(/*dc=*/TFT_DC,/*cs=*/TFT_CS,/*rst=*/TFT_RST
 // https://www.circuitschools.com/weighing-scale-using-load-cell-and-hx711-amplifier-with-arduino/
 HX711 loadcell;
 
+const int GRAM_MULTIPLIER = 1000;
 int ADC_VALUE = 0;
 double voltage_value = 0.0; 
 float calibration_factor = 137326;
 double lastReading = 0.0;
 float slope = 2.48;// 92.07; // slope from linear fit
 float intercept = 0.72;//-29.92; // intercept from linear fit
+int buttonState = 0;
 
 void setup() {
   // Serial1.begin(9600, SERIAL_8N1,/*rx =*/0,/*Tx =*/1);  should work but won't
   Serial.begin(9600, SERIAL_8N1); // this give my ain't shit
   screen.begin();
-  pinMode(adcPin, INPUT); // set the analog reference to 3.3V
+  pinMode(ADC_PIN, INPUT); // set the analog reference to 3.3V
+  pinMode(BTN_PIN, INPUT);
   splash();
   // LOAD CELL
   screen.setCursor(4, 4);
@@ -44,28 +48,37 @@ void setup() {
   loadcell.set_scale();
   loadcell.tare();	//Reset the scale to 0
   long zero_factor = loadcell.read_average(); //Get a baseline reading
+  screen.fillScreen(COLOR_RGB565_BLACK);
   screen.setCursor(4, 12);
   screen.print("Zero factor: "); //This can be used to remove the need to tare the scale. Useful in permanent scale projects.
   screen.println(zero_factor);
-  screen.fillScreen(COLOR_RGB565_GREEN);
   screen.setCursor(4, 20);
   screen.println("LoadCell ready");
-
+  delay(1000);
+  // exit and setup screen for loop
   screen.fillScreen(COLOR_RGB565_BLACK);
+  screen.setTextColor(COLOR_RGB565_WHITE); // slow operation
 }
 
 void loop() {
+  setupScreen();
+  displayADC();
+  bool isNew = displayWeight();
+  delay(isNew ? 500 : 2000);
+  // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
+}
+
+void setupScreen() {
   screen.setTextSize(2);
   screen.setCursor(4, 4);
   screen.print("Readings");
-  loadcell.set_scale(calibration_factor); //Adjust to this calibration factor
+  screen.setTextSize(1);
   screen.drawRect(/*x=*/2, /*y=*/2 , /*w=*/screen.width() - 8, /*h=*/46 + 8 + 8, /*color=*/COLOR_RGB565_DGREEN);
   screen.fillRect(/*x=*/4, /*y=*/24 , /*w=*/screen.width() - (8 + 4), /*h=*/46 -6, /*color=*/COLOR_RGB565_BLACK);
   delay(100);
+}
 
-  screen.setTextColor(COLOR_RGB565_WHITE);
-  screen.setTextSize(1);
-
+void displayADC() {
   sensor_reading();
   screen.setCursor(4, 24);
   screen.print("ADC value: ");
@@ -73,28 +86,25 @@ void loop() {
   screen.setCursor(4, 36);
   screen.print("ADC voltage: ");
   screen.println(voltage_value);
-  
+}
+
+bool displayWeight() {
+  loadcell.set_scale(calibration_factor); //Adjust to this calibration factor
+  float reading = loadcell.get_units(10) * GRAM_MULTIPLIER; 
   screen.setCursor(4, 46);
-  float reading = loadcell.get_units();
   screen.print("Weight: ");
-  screen.print(reading, 4);
-  screen.println(" Kgs");
+  screen.print(reading, 6);
+  screen.println(" g");
   screen.setCursor(4, 54);
   screen.print("Water: ");
   float vol_water_cont = ((1.0 / voltage_value) * slope) + intercept; // calc of theta_v (vol. water content)
   screen.print(vol_water_cont);
   screen.println(" cm^3/cm^3"); // cm^3/cm^3
-  // ESP_LOGI("LOOP", "calibration scheme version is %s", "Curve Fitting");
- 
-  if ((reading - lastReading) > 0.005) {
-    lastReading = reading;
-    delay(500);
+  bool isNew = (reading - lastReading) > 0.005;
+  if (isNew) {
+      lastReading = reading;
   }
-  else {
-    delay(2000);
-  }
-
-
+  return isNew;
 }
 
 void splash() {
@@ -114,7 +124,7 @@ void splash() {
     color+=0x0100;
     delay(50);
   }
-  for(i = 0 ; i <= 10; i+=2) {
+  for(i = 0 ; i <= 10; i+=2 ) {
     screen.fillRoundRect(/*x0=*/x, /*y0=*/y, /*w=*/w, /*h=*/h, /*radius=*/10, /*color=*/color);
     x+=5;
     y+=5;
@@ -126,7 +136,7 @@ void splash() {
 }
 
 float sensor_reading() {
-  ADC_VALUE = analogRead(adcPin);
+  ADC_VALUE = analogRead(ADC_PIN);
   voltage_value = (ADC_VALUE * 3.3 ) / (4095);
   return voltage_value;
 }
